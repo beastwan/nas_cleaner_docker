@@ -10,7 +10,6 @@ import math
 import pillow_heif  # <--- 新增：引入 HEIC 支持库
 from torchvision import models, transforms
 from PIL import Image, ImageOps, ImageStat, ExifTags
-from flask import Flask, render_template, request, jsonify, send_from_directory
 
 import io  # <--- 新增
 from flask import Flask, render_template, request, jsonify, send_from_directory, send_file # <--- 修改这里，加上 send_file

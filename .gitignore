@@ -8,5 +8,6 @@ __pycache__/
 config.json
 *.log
 
+*.heic
 download.zip
 download/
