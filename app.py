@@ -7,15 +7,14 @@ import urllib.parse
 import torch
 import torch.nn as nn
 import math
+import io  # <--- 新增
 import pillow_heif  # <--- 新增：引入 HEIC 支持库
 from torchvision import models, transforms
 from PIL import Image, ImageOps, ImageStat, ExifTags
-
-import io  # <--- 新增
 from flask import Flask, render_template, request, jsonify, send_from_directory, send_file # <--- 修改这里，加上 send_file
-
 from concurrent.futures import ThreadPoolExecutor
 from facenet_pytorch import MTCNN
+
 # <--- 新增：注册 HEIC 打开器，让 PIL 能读取 HEIC
 pillow_heif.register_heif_opener()
 
