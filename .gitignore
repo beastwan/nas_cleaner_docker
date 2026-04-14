@@ -1,0 +1,12 @@
+# 忽略依赖包
+node_modules/
+venv/
+__pycache__/
+
+# ⚠️ 必须忽略环境变量和配置文件（你的 NAS 密码绝对不能传上去）
+.env
+config.json
+*.log
+
+download.zip
+download/

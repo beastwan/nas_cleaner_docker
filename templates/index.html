@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>AI 摄影师 - 智能选片系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    <style>
+        .img-card { 
+            cursor: pointer; 
+            border: 4px solid transparent; 
+            transition: all 0.2s; 
+            position: relative; 
+            overflow: hidden;
+            border-radius: 8px;
+        }
+        .img-card:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.15); }
+        
+        /* 选中状态 (红框) */
+        .img-card.selected { 
+            border-color: #dc3545 !important; 
+            opacity: 0.8; 
+            background-color: #ffe6e6;
+        }
+        /* 选中时的遮罩图标 */
+        .img-card.selected::after {
+            content: "🗑";
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3rem; color: rgba(220, 53, 69, 0.8);
+            pointer-events: none;
+            z-index: 10;
+        }
+        
+        /* 最佳照片 */
+        .img-card.best { 
+            border-color: #198754; 
+            box-shadow: 0 0 12px rgba(25, 135, 84, 0.4);
+        }
+        
+        .img-preview { height: 260px; object-fit: cover; width: 100%; }
+        .score-badge { position: absolute; bottom: 0; right: 0; background: rgba(0,0,0,0.8); color: #fff; padding: 4px 8px; border-top-left-radius: 8px; font-weight: bold; font-size: 1.1rem; z-index: 5;}
+        
+        .details-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); color: white;
+            padding: 15px; font-size: 0.85rem;
+            display: none; flex-direction: column; justify-content: center;
+            pointer-events: none;
+            z-index: 6;
+        }
+        .img-card:hover .details-overlay { display: flex; }
+        
+        .sticky-header {
+            position: sticky; top: 0; z-index: 1000;
+            background: rgba(255,255,255,0.98);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid #ddd;
+            padding: 10px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        
+        .group-collapsed .card-body { display: none; }
+        .group-collapsed { opacity: 0.6; }
+    </style>
+</head>
+<body class="bg-light">
+
+<div class="sticky-header">
+    <div class="container-fluid px-4">
+        <div class="row align-items-center g-2">
+            <div class="col-md-4 d-flex align-items-center">
+                <h5 class="m-0 fw-bold me-3 text-nowrap">📸 AI 选片</h5>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text">📂</span>
+                    <input type="text" id="scanPathInput" class="form-control" placeholder="输入文件夹路径 (如 Y:\2022)" value="{{ default_path }}">
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="progress" style="height: 8px;">
+                    <div id="progressBar" class="progress-bar bg-primary progress-bar-striped progress-bar-animated" style="width: 0%"></div>
+                </div>
+                <div class="d-flex justify-content-between small text-muted mt-1">
+                    <span id="statusText">准备就绪</span>
+                    <span id="progressPercent">0%</span>
+                </div>
+            </div>
+
+            <div class="col-md-4 text-end">
+                <div class="d-flex justify-content-end gap-2">
+                    <button id="startBtn" class="btn btn-sm btn-primary px-3">🚀 开始</button>
+                    <button id="pauseBtn" class="btn btn-sm btn-warning text-white d-none">⏸ 暂停</button>
+                    <button id="resumeBtn" class="btn btn-sm btn-success d-none">▶ 继续</button>
+                    
+                    <div class="vr mx-2"></div>
+                    
+                    <button id="deleteAllSelectedBtn" class="btn btn-sm btn-danger px-3">
+                        🗑 删除所有已选 (<span id="totalSelectedCount">0</span>)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container py-4">
+    <div id="resultsArea"></div>
+    <div id="loading" class="text-center py-5 d-none">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="mt-2 text-muted">正在智能分析下一批...</p>
+    </div>
+</div>
+
+<script>
+    let isRunning = false;
+    let isPaused = false;
+    let currentStart = 0;
+    let totalFiles = 0;
+    const BATCH_SIZE = 30;
+
+    const startBtn = document.getElementById('startBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const resumeBtn = document.getElementById('resumeBtn');
+    const deleteAllBtn = document.getElementById('deleteAllSelectedBtn');
+    const scanPathInput = document.getElementById('scanPathInput');
+    const resultsArea = document.getElementById('resultsArea');
+    const statusText = document.getElementById('statusText');
+    const totalSelectedSpan = document.getElementById('totalSelectedCount');
+
+    // ================== 全局计数器 ==================
+    setInterval(() => {
+        const count = document.querySelectorAll('.img-card.selected').length;
+        totalSelectedSpan.innerText = count;
+        deleteAllBtn.disabled = count === 0;
+    }, 1000);
+
+    // ================== 按钮事件 ==================
+
+    startBtn.addEventListener('click', async () => {
+        const path = scanPathInput.value.trim();
+        if(!path) return alert("请输入扫描路径");
+
+        resultsArea.innerHTML = '';
+        currentStart = 0;
+        isRunning = true;
+        isPaused = false;
+        
+        startBtn.classList.add('d-none');
+        pauseBtn.classList.remove('d-none');
+        scanPathInput.disabled = true;
+        
+        statusText.innerText = "扫描文件...";
+        try {
+            const initRes = await fetch(`/scan/init?path=${encodeURIComponent(path)}`);
+            const initData = await initRes.json();
+            
+            if(initData.error) throw new Error(initData.error);
+            
+            totalFiles = initData.total;
+            statusText.innerText = `共 ${totalFiles} 张，开始分析...`;
+            processBatch();
+        } catch (e) {
+            alert("错误: " + e.message);
+            resetUI();
+        }
+    });
+
+    pauseBtn.addEventListener('click', () => {
+        isPaused = true;
+        pauseBtn.classList.add('d-none');
+        resumeBtn.classList.remove('d-none');
+        statusText.innerText = "已暂停";
+    });
+
+    resumeBtn.addEventListener('click', () => {
+        isPaused = false;
+        resumeBtn.classList.add('d-none');
+        pauseBtn.classList.remove('d-none');
+        processBatch();
+    });
+    
+    // 全局删除所有已选
+    deleteAllBtn.addEventListener('click', async () => {
+        const allSelected = document.querySelectorAll('.img-card.selected');
+        const paths = Array.from(allSelected).map(e => e.dataset.path);
+        
+        if (paths.length === 0) return;
+        if (!confirm(`🚨 确认一次性删除所有已选的 ${paths.length} 张照片吗？\n不可撤销！`)) return;
+        
+        await performDelete(paths, () => {
+            allSelected.forEach(e => {
+                const col = e.closest('.col-6');
+                if(col) col.remove();
+            });
+        });
+    });
+
+    function resetUI() {
+        startBtn.classList.remove('d-none');
+        pauseBtn.classList.add('d-none');
+        scanPathInput.disabled = false;
+        isRunning = false;
+    }
+
+    // ================== 核心处理 ==================
+
+    async function processBatch() {
+        if (!isRunning || isPaused) return;
+        document.getElementById('loading').classList.remove('d-none');
+        
+        try {
+            const res = await fetch(`/scan/batch?start=${currentStart}&count=${BATCH_SIZE}`);
+            const data = await res.json();
+            
+            if (data.groups && data.groups.length > 0) {
+                renderGroups(data.groups);
+            }
+            
+            currentStart += BATCH_SIZE;
+            const pct = Math.min(100, Math.round((currentStart / totalFiles) * 100));
+            document.getElementById('progressBar').style.width = pct + '%';
+            document.getElementById('progressPercent').innerText = pct + '%';
+            statusText.innerText = `${Math.min(currentStart, totalFiles)} / ${totalFiles}`;
+            
+            if (data.has_more) {
+                setTimeout(processBatch, 200); 
+            } else {
+                isRunning = false;
+                statusText.innerText = "完成";
+                document.getElementById('loading').classList.add('d-none');
+                startBtn.classList.remove('d-none');
+                startBtn.innerText = "重新开始";
+                pauseBtn.classList.add('d-none');
+                scanPathInput.disabled = false;
+            }
+        } catch (e) {
+            console.error(e);
+            setTimeout(processBatch, 2000);
+        }
+    }
+
+    function renderGroups(groups) {
+        groups.forEach((group, idx) => {
+            const bestItem = group.reduce((p, c) => p.score > c.score ? p : c);
+            const groupId = `g-${Date.now()}-${idx}`;
+            
+            let html = `
+            <div class="card mb-4 shadow-sm" id="${groupId}">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+                    <div class="d-flex align-items-center">
+                        <span class="badge bg-secondary me-2">组 ${group.length}张</span>
+                        <span class="small text-muted">${group[0].ai_data.type === 'person' ? '🧑人物' : '🏔️风景'}</span>
+                    </div>
+                    <div>
+                        <button class="btn btn-outline-danger btn-sm me-1" onclick="deleteSelected('${groupId}')">
+                            🗑 删除选中
+                        </button>
+                        <button class="btn btn-outline-success btn-sm me-1" onclick="keepAll('${groupId}')">
+                            ✅ 全部保留
+                        </button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteAllInGroup('${groupId}')" title="删除整个组的所有照片">
+                            💥 删除该组
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body bg-light">
+                    <div class="row g-2">`;
+            
+            group.forEach(item => {
+                const isBest = item.path === bestItem.path;
+                const borderClass = isBest ? 'best' : 'selected'; 
+                
+                const details = item.ai_data.details;
+                let detailHtml = `<div class="mb-2 text-warning fw-bold border-bottom">得分: ${item.score}</div>`;
+                for (let [k, v] of Object.entries(details)) {
+                    detailHtml += `<div class="d-flex justify-content-between"><span>${k}</span><span>${parseInt(v)}</span></div>`;
+                }
+
+                html += `
+                <div class="col-6 col-md-3 col-lg-2">
+                    <div class="card img-card ${borderClass}" 
+                         data-path="${item.path}" 
+                         onclick="toggleSelect(this)"
+                         ondblclick="window.open('${item.display_path}', '_blank'); event.stopPropagation();"
+                         title="双击原图: ${item.path}">
+                        
+                        ${isBest ? '<div class="position-absolute top-0 start-0 m-1 badge bg-success shadow" style="z-index:2">👑 最佳</div>' : ''}
+                        
+                        <img src="${item.display_path}" class="img-preview">
+                        <div class="score-badge">${item.score}</div>
+                        
+                        <div class="details-overlay">${detailHtml}</div>
+                    </div>
+                </div>`;
+            });
+            
+            html += `</div></div></div>`;
+            resultsArea.insertAdjacentHTML('beforeend', html);
+        });
+    }
+
+    // ================== 动作函数 ==================
+
+    window.toggleSelect = function(el) {
+        // 修改点：直接切换 selected 状态，移除了限制“最佳照片”不可选中的代码
+        el.classList.toggle('selected');
+    }
+
+    window.keepAll = function(id) {
+        const card = document.getElementById(id);
+        const btn = card.querySelector('.btn-outline-success');
+        if (card.classList.contains('group-collapsed')) {
+            card.classList.remove('group-collapsed');
+            btn.innerHTML = '✅ 全部保留';
+            btn.classList.replace('btn-success', 'btn-outline-success');
+        } else {
+            // 清除选中
+            card.querySelectorAll('.selected').forEach(e => e.classList.remove('selected'));
+            card.classList.add('group-collapsed');
+            btn.innerHTML = '🔒 已保留';
+            btn.classList.replace('btn-outline-success', 'btn-success');
+        }
+    }
+
+    window.deleteSelected = async function(id) {
+        const card = document.getElementById(id);
+        const selected = card.querySelectorAll('.selected');
+        const paths = Array.from(selected).map(e => e.dataset.path);
+        
+        if (!paths.length) return alert('本组没有选中的照片');
+        
+        await performDelete(paths, () => {
+            selected.forEach(e => e.closest('.col-6').remove());
+        });
+    }
+    
+    // 彻底删除当前组所有照片
+    window.deleteAllInGroup = async function(id) {
+        const card = document.getElementById(id);
+        const all = card.querySelectorAll('.img-card');
+        const paths = Array.from(all).map(e => e.dataset.path);
+        if(!confirm(`确定要彻底删除该组所有的 ${paths.length} 张照片吗？`)) return;
+        await performDelete(paths, () => card.remove());
+    }
+
+    async function performDelete(paths, onSuccess) {
+        try {
+            const res = await fetch('/delete', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({files: paths})
+            });
+            const data = await res.json();
+            if (data.deleted) onSuccess();
+        } catch (e) {
+            console.error(e);
+        }
+    }
+</script>
+</body>
+</html>
