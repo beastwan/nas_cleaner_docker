@@ -1,3 +1,4 @@
+import io
 import os
 import cv2
 import numpy as np
@@ -7,7 +8,6 @@ import urllib.parse
 import torch
 import torch.nn as nn
 import math
-import io  # <--- 新增
 import pillow_heif  # <--- 新增：引入 HEIC 支持库
 from torchvision import models, transforms
 from PIL import Image, ImageOps, ImageStat, ExifTags
