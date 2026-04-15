@@ -5,7 +5,7 @@ services:
     container_name: photo_cleaner_app
     ports:
       - "5050:5000"  # 浏览器通过 http://nas-ip:5050 访问
-    environment:
+    environment: # 设置环境变量，告诉容器内的 Python 脚本照片库路径; 如果你在 Windows 上运行 Docker，确保路径格式正确（例如：/data 对应于 Windows 的 Y: 驱动器）
           - NAS_PHOTO_DIR=/data  # 关键：告诉 Python 容器内的照片路径
     volumes:
       - /volume2/docker/nas_cleaner/download:/data:rw  # 重要：将你的照片库映射到容器内的 /data
