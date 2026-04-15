@@ -50,50 +50,6 @@ THUMBNAIL_QUALITY = 80  # JPEG 质量
 # 数据库配置
 DB_PATH = "scan_history.db"
 
-# ==================== 文件列表缓存 ====================
-# 缓存扫描路径的文件列表，避免重复遍历文件系统
-file_cache = {}  # scan_path -> [file_list]
-file_cache_lock = threading.Lock()  # 缓存访问锁
-
-def get_cached_file_list(scan_path):
-    """
-    获取缓存的文件列表，如果未缓存则扫描并缓存
-    返回：文件路径列表
-    """
-    with file_cache_lock:
-        if scan_path not in file_cache:
-            print(f"🔄 扫描并缓存文件列表: {scan_path}")
-            file_list = []
-            start_time = time.time()
-            
-            for root, dirs, files in os.walk(scan_path):
-                # 过滤群晖缩略图目录
-                dirs[:] = [d for d in dirs if '@eadir' not in d.lower()]
-                
-                for file in files:
-                    if os.path.splitext(file)[1].lower() in EXTENSIONS:
-                        full_path = os.path.join(root, file)
-                        file_list.append(full_path)
-            
-            file_cache[scan_path] = file_list
-            elapsed = time.time() - start_time
-            print(f"✅ 文件列表缓存完成: {len(file_list)} 个文件, 耗时 {elapsed:.2f} 秒")
-        
-        return file_cache[scan_path]
-
-def clear_file_cache(scan_path=None):
-    """
-    清理文件缓存
-    scan_path: 如果为None，清理所有缓存；否则清理指定路径的缓存
-    """
-    with file_cache_lock:
-        if scan_path is None:
-            file_cache.clear()
-            print("🗑️ 已清理所有文件缓存")
-        elif scan_path in file_cache:
-            del file_cache[scan_path]
-            print(f"🗑️ 已清理路径缓存: {scan_path}")
-
 # ==================== 2. AI 模型初始化 ====================
 # 检测计算设备
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -722,7 +678,7 @@ def index():
     similarity_threshold = request.args.get('similarity_threshold', 0.85, type=float)
     
     return render_template(
-        'index_new.html',
+        'index.html',
         default_path=DEFAULT_WINDOWS_PATH,
         window_size=window_size,
         similarity_threshold=similarity_threshold,
@@ -746,15 +702,14 @@ def init_scan():
     if not os.path.exists(scan_path):
         return jsonify({"error": f"路径不存在: {scan_path}"}), 400
     
-    # 清理旧的缓存（如果有）
-    clear_file_cache(scan_path)
-    
-    # 获取文件列表（会自动缓存）
-    try:
-        file_list = get_cached_file_list(scan_path)
-    except Exception as e:
-        print(f"❌ 扫描文件列表失败: {e}")
-        return jsonify({"error": f"扫描文件列表失败: {str(e)}"}), 500
+    # 扫描文件
+    file_list = []
+    for root, dirs, files in os.walk(scan_path):
+        dirs[:] = [d for d in dirs if '@eadir' not in d.lower()]  # 过滤群晖缩略图
+        for file in files:
+            if os.path.splitext(file)[1].lower() in EXTENSIONS:
+                full_path = os.path.join(root, file)
+                file_list.append(full_path)
     
     total_files = len(file_list)
     
@@ -768,16 +723,12 @@ def init_scan():
         "total": total_files,
         "path": scan_path,
         "window_size": window_size,
-        "similarity_threshold": similarity_threshold,
-        "cache_info": {
-            "cached": True,
-            "file_count": total_files
-        }
+        "similarity_threshold": similarity_threshold
     })
 
 @app.route('/api/scan/batch')
 def scan_batch():
-    """获取下一批处理结果 - 使用缓存文件列表"""
+    """获取下一批处理结果"""
     batch_size = request.args.get('batch_size', 20, type=int)
     
     scanner = session_manager.get_scanner()
@@ -788,33 +739,35 @@ def scan_batch():
     scan_path = session_manager.active_session['scan_path']
     processed_count = session_manager.active_session['processed_count']
     
-    # 使用缓存的文件列表
-    try:
-        all_files = get_cached_file_list(scan_path)
-    except Exception as e:
-        print(f"❌ 获取缓存文件列表失败: {e}")
-        return jsonify({"error": "获取文件列表失败"}), 500
+    # 这里需要实现从文件系统中获取下一批文件
+    # 由于文件系统遍历较慢，这里简化处理
+    # 实际实现应该缓存文件列表
     
-    # 计算偏移量
-    offset = processed_count
-    batch_files = all_files[offset:offset + batch_size]
+    file_list = []
+    count = 0
+    for root, dirs, files in os.walk(scan_path):
+        if count >= batch_size:
+            break
+        dirs[:] = [d for d in dirs if '@eadir' not in d.lower()]
+        for file in files:
+            if count >= batch_size:
+                break
+            if os.path.splitext(file)[1].lower() in EXTENSIONS:
+                full_path = os.path.join(root, file)
+                file_list.append(full_path)
+                count += 1
     
     # 处理批次
-    groups = process_batch_with_sliding_window(batch_files)
+    groups = process_batch_with_sliding_window(file_list)
     
     # 检查是否完成
-    has_more = (offset + len(batch_files)) < len(all_files)
+    has_more = True  # 简化处理，实际应该检查是否还有未处理文件
     
     return jsonify({
         "groups": groups,
         "has_more": has_more,
         "processed": session_manager.active_session['processed_count'],
-        "total": session_manager.active_session['total_files'],
-        "batch_info": {
-            "offset": offset,
-            "batch_size": len(batch_files),
-            "total_files": len(all_files)
-        }
+        "total": session_manager.active_session['total_files']
     })
 
 @app.route('/api/scan/pause', methods=['POST'])

@@ -6,330 +6,128 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
     <style>
-        :root {
-            --primary-color: #4361ee;
-            --secondary-color: #3a0ca3;
-            --success-color: #4cc9f0;
-            --danger-color: #f72585;
-            --warning-color: #f8961e;
-            --info-color: #7209b7;
-        }
-        
         .img-card { 
             cursor: pointer; 
             border: 4px solid transparent; 
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.2s; 
             position: relative; 
             overflow: hidden;
-            border-radius: 12px;
-            background: #fff;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
         }
-        .img-card:hover { 
-            transform: translateY(-4px) scale(1.02); 
-            box-shadow: 0 12px 20px rgba(0, 0, 0, 0.15);
-            border-color: var(--primary-color);
-        }
+        .img-card:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.15); }
         
         /* 选中状态 (红框) */
         .img-card.selected { 
-            border-color: var(--danger-color) !important; 
-            opacity: 0.85; 
-            background-color: rgba(247, 37, 133, 0.05);
-            animation: pulse 1.5s infinite;
+            border-color: #dc3545 !important; 
+            opacity: 0.8; 
+            background-color: #ffe6e6;
         }
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(247, 37, 133, 0.4); }
-            70% { box-shadow: 0 0 0 10px rgba(247, 37, 133, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(247, 37, 133, 0); }
-        }
-        
         /* 选中时的遮罩图标 */
         .img-card.selected::after {
             content: "🗑";
             position: absolute; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 3.5rem; color: rgba(247, 37, 133, 0.9);
+            font-size: 3rem; color: rgba(220, 53, 69, 0.8);
             pointer-events: none;
             z-index: 10;
-            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
         }
         
         /* 最佳照片 */
         .img-card.best { 
-            border-color: var(--success-color); 
-            box-shadow: 0 0 20px rgba(76, 201, 240, 0.5);
-            position: relative;
-        }
-        .img-card.best::before {
-            content: "👑 最佳";
-            position: absolute; top: 10px; left: 10px;
-            background: var(--success-color);
-            color: white;
-            padding: 4px 8px;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: bold;
-            z-index: 5;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            border-color: #198754; 
+            box-shadow: 0 0 12px rgba(25, 135, 84, 0.4);
         }
         
-        /* 保留的照片 */
-        .img-card.kept { 
-            border-color: var(--info-color); 
-            opacity: 0.7;
-            background-color: rgba(114, 9, 183, 0.05);
-        }
-        .img-card.kept::after {
-            content: "✅ 已保留";
-            position: absolute; top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 1.2rem; color: rgba(114, 9, 183, 0.9);
-            pointer-events: none;
-            z-index: 10;
-            background: rgba(255, 255, 255, 0.9);
-            padding: 5px 10px;
-            border-radius: 20px;
-        }
-        
-        .img-preview { 
-            height: 220px; 
-            object-fit: cover; 
-            width: 100%;
-            transition: transform 0.3s ease;
-        }
-        .img-card:hover .img-preview {
-            transform: scale(1.05);
-        }
-        
-        .score-badge { 
-            position: absolute; 
-            bottom: 0; 
-            right: 0; 
-            background: linear-gradient(135deg, rgba(0,0,0,0.9), rgba(67, 97, 238, 0.9));
-            color: #fff; 
-            padding: 6px 12px; 
-            border-top-left-radius: 12px; 
-            font-weight: bold; 
-            font-size: 1.1rem; 
-            z-index: 5;
-            box-shadow: -2px -2px 5px rgba(0, 0, 0, 0.2);
-        }
+        .img-preview { height: 260px; object-fit: cover; width: 100%; }
+        .score-badge { position: absolute; bottom: 0; right: 0; background: rgba(0,0,0,0.8); color: #fff; padding: 4px 8px; border-top-left-radius: 8px; font-weight: bold; font-size: 1.1rem; z-index: 5;}
         
         .details-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(135deg, rgba(0,0,0,0.95), rgba(58, 12, 163, 0.95));
-            color: white;
-            padding: 15px; font-size: 0.8rem;
+            background: rgba(0,0,0,0.85); color: white;
+            padding: 15px; font-size: 0.85rem;
             display: none; flex-direction: column; justify-content: center;
             pointer-events: none;
             z-index: 6;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            border-radius: 8px;
         }
-        .img-card:hover .details-overlay { 
-            display: flex; 
-            opacity: 1;
-        }
+        .img-card:hover .details-overlay { display: flex; }
         
         .sticky-header {
             position: sticky; top: 0; z-index: 1000;
-            background: linear-gradient(135deg, rgba(255,255,255,0.98), rgba(248, 249, 250, 0.98));
-            backdrop-filter: blur(20px) saturate(180%);
-            border-bottom: 1px solid rgba(222, 226, 230, 0.8);
+            background: white;
+            border-bottom: 1px solid #dee2e6;
             padding: 15px 0;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
         
         .group-collapsed .card-body { display: none; }
-        .group-collapsed { 
-            opacity: 0.7; 
-            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-        }
+        .group-collapsed { opacity: 0.7; background: #f8f9fa; }
         
         .config-panel {
-            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-            border-radius: 12px;
-            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
             margin-bottom: 20px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-            border: 1px solid rgba(0, 0, 0, 0.05);
         }
         
         .status-badge {
-            padding: 8px 15px;
-            border-radius: 25px;
+            padding: 6px 12px;
+            border-radius: 20px;
             font-weight: 600;
-            font-size: 0.9rem;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
+            font-size: 0.85rem;
         }
-        .status-idle { background: linear-gradient(135deg, #6c757d, #495057); color: white; }
-        .status-scanning { background: linear-gradient(135deg, #4361ee, #3a0ca3); color: white; }
-        .status-paused { background: linear-gradient(135deg, #f8961e, #f3722c); color: white; }
-        .status-completed { background: linear-gradient(135deg, #4cc9f0, #4895ef); color: white; }
-        
-        .progress-container {
-            background: rgba(0, 0, 0, 0.05);
-            border-radius: 10px;
-            overflow: hidden;
-            height: 12px;
-        }
-        .progress-bar-custom {
-            background: linear-gradient(90deg, #4361ee, #4cc9f0);
-            height: 100%;
-            transition: width 0.5s ease;
-            position: relative;
-            overflow: hidden;
-        }
-        .progress-bar-custom::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            bottom: 0;
-            right: 0;
-            background-image: linear-gradient(
-                45deg,
-                rgba(255, 255, 255, 0.15) 25%,
-                transparent 25%,
-                transparent 50%,
-                rgba(255, 255, 255, 0.15) 50%,
-                rgba(255, 255, 255, 0.15) 75%,
-                transparent 75%,
-                transparent
-            );
-            background-size: 1rem 1rem;
-            animation: progress-stripes 1s linear infinite;
-        }
-        @keyframes progress-stripes {
-            0% { background-position: 1rem 0; }
-            100% { background-position: 0 0; }
-        }
+        .status-idle { background: #6c757d; color: white; }
+        .status-scanning { background: #0d6efd; color: white; }
+        .status-paused { background: #ffc107; color: black; }
+        .status-completed { background: #198754; color: white; }
         
         .checkbox-custom {
             position: absolute;
             top: 10px;
             left: 10px;
-            width: 24px;
-            height: 24px;
+            width: 20px;
+            height: 20px;
             background: white;
             border-radius: 4px;
             border: 2px solid #dee2e6;
             z-index: 7;
             cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
         }
         .checkbox-custom.checked {
-            background: var(--primary-color);
-            border-color: var(--primary-color);
+            background: #0d6efd;
+            border-color: #0d6efd;
         }
         .checkbox-custom.checked::after {
             content: "✓";
             color: white;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             font-weight: bold;
-            font-size: 14px;
         }
         
         .modal-image {
             max-width: 100%;
-            max-height: 80vh;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            max-height: 70vh;
+            border-radius: 8px;
         }
         
         .window-info {
-            background: linear-gradient(135deg, #e9ecef, #dee2e6);
-            border-radius: 8px;
-            padding: 10px 15px;
-            font-size: 0.85rem;
-            border-left: 4px solid var(--primary-color);
+            background: #e9ecef;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 0.8rem;
         }
-        
-        .floating-actions {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        
-        .floating-btn {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
-            transition: all 0.3s ease;
-            border: none;
-            color: white;
-        }
-        .floating-btn:hover {
-            transform: translateY(-3px) scale(1.1);
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
-        }
-        .floating-btn-primary { background: linear-gradient(135deg, #4361ee, #3a0ca3); }
-        .floating-btn-success { background: linear-gradient(135deg, #4cc9f0, #4895ef); }
-        .floating-btn-danger { background: linear-gradient(135deg, #f72585, #b5179e); }
-        .floating-btn-warning { background: linear-gradient(135deg, #f8961e, #f3722c); }
-        
-        .stats-card {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-            border: 1px solid rgba(0, 0, 0, 0.05);
-            transition: all 0.3s ease;
-        }
-        .stats-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-        }
-        
-        .type-badge {
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-        .type-person { background: linear-gradient(135deg, #4cc9f0, #4895ef); color: white; }
-        .type-scenery { background: linear-gradient(135deg, #f8961e, #f3722c); color: white; }
     </style>
 </head>
 <body class="bg-light">
 
-<!-- 浮动操作按钮 -->
-<div class="floating-actions">
-    <button class="floating-btn floating-btn-primary" onclick="scrollToTop()" title="回到顶部">
-        <i class="bi bi-arrow-up"></i>
-    </button>
-    <button class="floating-btn floating-btn-success" onclick="selectAllInView()" title="全选当前视图">
-        <i class="bi bi-check-all"></i>
-    </button>
-    <button class="floating-btn floating-btn-warning" onclick="deselectAll()" title="取消全选">
-        <i class="bi bi-x-circle"></i>
-    </button>
-    <button class="floating-btn floating-btn-danger" onclick="deleteSelected()" title="删除选中">
-        <i class="bi bi-trash"></i>
-    </button>
-</div>
-
 <!-- 图片预览模态框 -->
 <div class="modal fade" id="imageModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-xl">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="imageModalLabel">图片预览</h5>
+                <h5 class="modal-title">图片预览</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body text-center">
@@ -349,12 +147,11 @@
 </div>
 
 <div class="sticky-header">
-    <div class="container-fluid px-4">
-        <!-- 第一行：标题和状态 -->
+    <div class="container-fluid">
         <div class="row align-items-center mb-3">
             <div class="col-md-6">
-                <h4 class="m-0 fw-bold">
-                    <i class="bi bi-camera me-2" style="color: var(--primary-color);"></i>
+                <h4 class="m-0">
+                    <i class="bi bi-camera me-2"></i>
                     AI 照片选片系统
                     <small class="text-muted fs-6 ms-2">滑动窗口优化版</small>
                 </h4>
@@ -367,8 +164,7 @@
             </div>
         </div>
         
-        <!-- 第二行：配置面板 -->
-        <div class="row g-3">
+        <div class="row g-2 mb-3">
             <div class="col-lg-3">
                 <div class="input-group input-group-sm">
                     <span class="input-group-text"><i class="bi bi-folder"></i></span>
@@ -393,4 +189,534 @@
                 <div class="input-group input-group-sm">
                     <span class="input-group-text"><i class="bi bi-percent"></i></span>
                     <input type="number" id="similarityThresholdInput" class="form-control" 
-                           placeholder="相似度阈值" value="{{ similarity
+                           placeholder="相似度阈值" value="{{ similarity_threshold }}" min="0.5" max="1.0" step="0.05">
+                </div>
+            </div>
+            
+            <div class="col-lg-2">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text"><i class="bi bi-list-ol"></i></span>
+                    <input type="number" id="batchSizeInput" class="form-control" 
+                           placeholder="批次大小" value="20" min="5" max="100">
+                    <span class="input-group-text">张</span>
+                </div>
+            </div>
+            
+            <div class="col-lg-3">
+                <div class="btn-group btn-group-sm w-100">
+                    <button id="startBtn" class="btn btn-primary" onclick="startScan()">
+                        <i class="bi bi-play-fill"></i> 开始扫描
+                    </button>
+                    <button id="pauseBtn" class="btn btn-warning" onclick="pauseScan()" disabled>
+                        <i class="bi bi-pause-fill"></i> 暂停
+                    </button>
+                    <button id="stopBtn" class="btn btn-danger" onclick="stopScan()" disabled>
+                        <i class="bi bi-stop-fill"></i> 停止
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-8">
+                <div class="progress-container">
+                    <div id="progressBar" class="progress-bar-custom" style="width: 0%"></div>
+                </div>
+                <div class="d-flex justify-content-between mt-1">
+                    <small id="progressText">等待开始...</small>
+                    <small id="windowInfo" class="text-muted">窗口大小: {{ window_size }}张</small>
+                </div>
+            </div>
+            <div class="col-md-4 text-end">
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary" onclick="selectAllInGroup()">
+                        <i class="bi bi-check-square"></i> 全选组内
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="deselectAll()">
+                        <i class="bi bi-x-square"></i> 取消全选
+                    </button>
+                    <button class="btn btn-outline-danger" onclick="deleteSelected()">
+                        <i class="bi bi-trash"></i> 删除选中
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid mt-4">
+    <div id="groupsContainer"></div>
+    
+    <div id="loadingIndicator" class="text-center py-5" style="display: none;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">加载中...</span>
+        </div>
+        <p class="mt-2">正在扫描照片，请稍候...</p>
+    </div>
+    
+    <div id="noResults" class="text-center py-5" style="display: none;">
+        <i class="bi bi-images fs-1 text-muted"></i>
+        <p class="mt-2 text-muted">没有找到相似照片组</p>
+    </div>
+    
+    <div id="loadMoreContainer" class="text-center py-3" style="display: none;">
+        <button id="loadMoreBtn" class="btn btn-outline-primary" onclick="loadMore()">
+            <i class="bi bi-arrow-down-circle"></i> 加载更多
+        </button>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    let currentGroups = [];
+    let selectedPhotos = new Set();
+    let currentModalImage = null;
+    let isScanning = false;
+    let hasMore = true;
+    let offset = 0;
+    const limit = 20;
+    
+    // 状态管理
+    function updateStatus() {
+        fetch('/api/status')
+            .then(res => res.json())
+            .then(data => {
+                const badge = document.getElementById('statusBadge');
+                const startBtn = document.getElementById('startBtn');
+                const pauseBtn = document.getElementById('pauseBtn');
+                const stopBtn = document.getElementById('stopBtn');
+                
+                if (data.has_session) {
+                    const session = data.session;
+                    const status = data.is_running ? 'scanning' : (data.is_paused ? 'paused' : 'completed');
+                    
+                    // 更新状态徽章
+                    badge.className = `status-badge status-${status}`;
+                    badge.innerHTML = `<i class="bi bi-circle-fill"></i><span>${getStatusText(status)}</span>`;
+                    
+                    // 更新按钮状态
+                    startBtn.disabled = data.is_running;
+                    pauseBtn.disabled = !data.is_running;
+                    stopBtn.disabled = !data.has_session;
+                    
+                    // 更新进度
+                    if (session.total_files > 0) {
+                        const progress = (session.processed_count / session.total_files) * 100;
+                        document.getElementById('progressBar').style.width = `${progress}%`;
+                        document.getElementById('progressText').textContent = 
+                            `已处理: ${session.processed_count}/${session.total_files} (${Math.round(progress)}%)`;
+                    }
+                    
+                    // 更新窗口信息
+                    if (data.window_info) {
+                        document.getElementById('windowInfo').textContent = 
+                            `窗口: ${data.window_info.window_size}/${data.window_info.max_window_size}张`;
+                    }
+                    
+                    isScanning = data.is_running;
+                    
+                    // 如果正在扫描，自动获取下一批
+                    if (data.is_running) {
+                        setTimeout(fetchNextBatch, 2000);
+                    }
+                } else {
+                    badge.className = 'status-badge status-idle';
+                    badge.innerHTML = '<i class="bi bi-circle-fill"></i><span>准备就绪</span>';
+                    startBtn.disabled = false;
+                    pauseBtn.disabled = true;
+                    stopBtn.disabled = true;
+                    isScanning = false;
+                }
+            })
+            .catch(err => console.error('状态更新失败:', err));
+    }
+    
+    function getStatusText(status) {
+        const texts = {
+            'idle': '准备就绪',
+            'scanning': '扫描中',
+            'paused': '已暂停',
+            'completed': '已完成'
+        };
+        return texts[status] || status;
+    }
+    
+    // 扫描控制
+    function startScan() {
+        const path = document.getElementById('scanPathInput').value;
+        const windowSize = parseInt(document.getElementById('windowSizeInput').value);
+        const similarityThreshold = parseFloat(document.getElementById('similarityThresholdInput').value);
+        
+        if (!path) {
+            alert('请输入扫描路径');
+            return;
+        }
+        
+        fetch('/api/scan/init', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                path: path,
+                window_size: windowSize,
+                similarity_threshold: similarityThreshold
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                alert(`开始扫描: ${data.total} 张照片`);
+                currentGroups = [];
+                selectedPhotos.clear();
+                offset = 0;
+                document.getElementById('groupsContainer').innerHTML = '';
+                document.getElementById('loadingIndicator').style.display = 'block';
+                document.getElementById('noResults').style.display = 'none';
+                updateStatus();
+                fetchNextBatch();
+            } else {
+                alert('扫描初始化失败: ' + (data.error || '未知错误'));
+            }
+        })
+        .catch(err => {
+            console.error('启动扫描失败:', err);
+            alert('启动扫描失败');
+        });
+    }
+    
+    function pauseScan() {
+        fetch('/api/scan/pause', { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    updateStatus();
+                }
+            })
+            .catch(err => console.error('暂停失败:', err));
+    }
+    
+    function stopScan() {
+        if (confirm('确定要停止扫描吗？')) {
+            fetch('/api/scan/stop', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        updateStatus();
+                        document.getElementById('loadingIndicator').style.display = 'none';
+                    }
+                })
+                .catch(err => console.error('停止失败:', err));
+        }
+    }
+    
+    function resumeScan() {
+        fetch('/api/scan/resume', { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    updateStatus();
+                }
+            })
+            .catch(err => console.error('恢复失败:', err));
+    }
+    
+    // 数据处理
+    function fetchNextBatch() {
+        if (!isScanning) return;
+        
+        const batchSize = parseInt(document.getElementById('batchSizeInput').value);
+        
+        fetch(`/api/scan/batch?batch_size=${batchSize}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.groups && data.groups.length > 0) {
+                    renderGroups(data.groups);
+                    document.getElementById('noResults').style.display = 'none';
+                }
+                
+                hasMore = data.has_more;
+                document.getElementById('loadingIndicator').style.display = hasMore ? 'block' : 'none';
+                
+                if (!hasMore && (!data.groups || data.groups.length === 0)) {
+                    document.getElementById('noResults').style.display = 'block';
+                }
+                
+                updateStatus();
+            })
+            .catch(err => {
+                console.error('获取批次失败:', err);
+                document.getElementById('loadingIndicator').style.display = 'none';
+            });
+    }
+    
+    function renderGroups(groups) {
+        const container = document.getElementById('groupsContainer');
+        
+        groups.forEach((group, groupIndex) => {
+            const groupId = `group-${Date.now()}-${groupIndex}`;
+            const groupHtml = `
+                <div class="card mb-4" id="${groupId}">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                        <div>
+                            <button class="btn btn-sm btn-outline-secondary me-2" onclick="toggleGroup('${groupId}')">
+                                <i class="bi bi-chevron-down"></i>
+                            </button>
+                            <span class="fw-bold">相似照片组 #${groupIndex + 1}</span>
+                            <span class="badge bg-primary ms-2">${group.length} 张照片</span>
+                        </div>
+                        <div>
+                            <button class="btn btn-sm btn-outline-primary" onclick="selectAllInGroup('${groupId}')">
+                                <i class="bi bi-check-square"></i> 全选
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            ${group.map((photo, photoIndex) => {
+                                const isBest = photoIndex === 0;
+                                const isSelected = selectedPhotos.has(photo.path);
+                                const typeClass = photo.ai_data.type === 'person' ? 'type-person' : 'type-scenery';
+                                
+                                return `
+                                    <div class="col-md-3 col-sm-4 col-6 mb-3">
+                                        <div class="img-card ${isBest ? 'best' : ''} ${isSelected ? 'selected' : ''}" 
+                                             onclick="toggleSelect('${photo.path}')" 
+                                             ondblclick="previewImage('${photo.path}', ${photo.score})">
+                                            <div class="checkbox-custom ${isSelected ? 'checked' : ''}" 
+                                                 onclick="event.stopPropagation(); toggleSelect('${photo.path}')"></div>
+                                            <img src="${photo.display_path}" class="img-preview" alt="预览" loading="lazy">
+                                            <div class="score-badge">${photo.score}</div>
+                                            <div class="details-overlay">
+                                                <div><strong>路径:</strong> ${photo.path.split('/').pop()}</div>
+                                                <div><strong>类型:</strong> <span class="${typeClass} type-badge">${photo.ai_data.type === 'person' ? '人物' : '风景'}</span></div>
+                                                <div><strong>评分:</strong> ${photo.score}</div>
+                                                ${Object.entries(photo.ai_data.details || {}).map(([key, value]) => 
+                                                    `<div><strong>${key}:</strong> ${Math.round(value)}</div>`
+                                                ).join('')}
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            container.insertAdjacentHTML('beforeend', groupHtml);
+        });
+        
+        currentGroups = currentGroups.concat(groups);
+    }
+    
+    // 图片选择操作
+    function toggleSelect(path) {
+        if (selectedPhotos.has(path)) {
+            selectedPhotos.delete(path);
+        } else {
+            selectedPhotos.add(path);
+        }
+        
+        // 更新UI
+        const card = document.querySelector(`.img-card[onclick*="${path}"]`);
+        if (card) {
+            card.classList.toggle('selected');
+            const checkbox = card.querySelector('.checkbox-custom');
+            if (checkbox) {
+                checkbox.classList.toggle('checked');
+            }
+        }
+    }
+    
+    function selectAllInGroup(groupId) {
+        const group = document.getElementById(groupId);
+        if (!group) return;
+        
+        const cards = group.querySelectorAll('.img-card');
+        cards.forEach(card => {
+            const onclick = card.getAttribute('onclick');
+            const match = onclick.match(/toggleSelect\('([^']+)'\)/);
+            if (match) {
+                const path = match[1];
+                selectedPhotos.add(path);
+                card.classList.add('selected');
+                const checkbox = card.querySelector('.checkbox-custom');
+                if (checkbox) {
+                    checkbox.classList.add('checked');
+                }
+            }
+        });
+    }
+    
+    function deselectAll() {
+        selectedPhotos.clear();
+        document.querySelectorAll('.img-card.selected').forEach(card => {
+            card.classList.remove('selected');
+            const checkbox = card.querySelector('.checkbox-custom');
+            if (checkbox) {
+                checkbox.classList.remove('checked');
+            }
+        });
+    }
+    
+    function deleteSelected() {
+        if (selectedPhotos.size === 0) {
+            alert('请先选择要删除的照片');
+            return;
+        }
+        
+        if (confirm(`确定要删除选中的 ${selectedPhotos.size} 张照片吗？此操作不可撤销！`)) {
+            const files = Array.from(selectedPhotos);
+            
+            fetch('/api/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ files: files })
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert(`成功删除 ${data.deleted.length} 张照片`);
+                
+                // 从UI中移除已删除的照片
+                files.forEach(path => {
+                    const card = document.querySelector(`.img-card[onclick*="${path}"]`);
+                    if (card) {
+                        card.parentElement.remove();
+                    }
+                    selectedPhotos.delete(path);
+                });
+            })
+            .catch(err => {
+                console.error('删除失败:', err);
+                alert('删除失败');
+            });
+        }
+    }
+    
+    // 图片预览
+    function previewImage(path, score) {
+        currentModalImage = path;
+        const modal = new bootstrap.Modal(document.getElementById('imageModal'));
+        document.getElementById('modalImage').src = `/image_raw?path=${encodeURIComponent(path)}`;
+        document.getElementById('imagePath').textContent = path;
+        document.getElementById('imageScore').textContent = `评分: ${score}`;
+        modal.show();
+    }
+    
+    function keepCurrentImage() {
+        if (!currentModalImage) return;
+        
+        fetch('/api/photos/action', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: currentModalImage, action: 'keep' })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                alert('照片已标记为保留');
+                const modal = bootstrap.Modal.getInstance(document.getElementById('imageModal'));
+                modal.hide();
+                
+                // 更新UI
+                const card = document.querySelector(`.img-card[onclick*="${currentModalImage}"]`);
+                if (card) {
+                    card.classList.add('kept');
+                }
+            }
+        })
+        .catch(err => {
+            console.error('保留失败:', err);
+            alert('保留失败');
+        });
+    }
+    
+    function deleteCurrentImage() {
+        if (!currentModalImage) return;
+        
+        if (confirm('确定要删除这张照片吗？')) {
+            fetch('/api/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ files: [currentModalImage] })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.deleted.includes(currentModalImage)) {
+                    alert('照片已删除');
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('imageModal'));
+                    modal.hide();
+                    
+                    // 从UI中移除
+                    const card = document.querySelector(`.img-card[onclick*="${currentModalImage}"]`);
+                    if (card) {
+                        card.parentElement.remove();
+                    }
+                    selectedPhotos.delete(currentModalImage);
+                }
+            })
+            .catch(err => {
+                console.error('删除失败:', err);
+                alert('删除失败');
+            });
+        }
+    }
+    
+    // 辅助函数
+    function toggleGroup(groupId) {
+        const group = document.getElementById(groupId);
+        if (group) {
+            group.classList.toggle('group-collapsed');
+            const button = group.querySelector('.card-header button');
+            if (button) {
+                const icon = button.querySelector('i');
+                if (icon) {
+                    icon.classList.toggle('bi-chevron-down');
+                    icon.classList.toggle('bi-chevron-right');
+                }
+            }
+        }
+    }
+    
+    function browseFolder() {
+        // 在实际应用中，这里可以集成文件选择器
+        // 目前使用简单的提示
+        const path = prompt('请输入文件夹路径:', document.getElementById('scanPathInput').value);
+        if (path) {
+            document.getElementById('scanPathInput').value = path;
+        }
+    }
+    
+    function loadMore() {
+        offset += limit;
+        fetch(`/api/groups?limit=${limit}&offset=${offset}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.groups && data.groups.length > 0) {
+                    // 这里需要根据组数据渲染
+                    // 简化处理：显示消息
+                    alert(`加载了 ${data.groups.length} 个组`);
+                } else {
+                    document.getElementById('loadMoreContainer').style.display = 'none';
+                }
+            })
+            .catch(err => console.error('加载更多失败:', err));
+    }
+    
+    // 初始化
+    document.addEventListener('DOMContentLoaded', function() {
+        updateStatus();
+        setInterval(updateStatus, 5000); // 每5秒更新一次状态
+        
+        // 检查是否有活动会话
+        fetch('/api/status')
+            .then(res => res.json())
+            .then(data => {
+                if (data.has_session && data.is_running) {
+                    document.getElementById('loadingIndicator').style.display = 'block';
+                    fetchNextBatch();
+                }
+            });
+    });
+</script>
+</body>
+</html>
