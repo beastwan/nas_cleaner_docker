@@ -6,7 +6,10 @@ services:
     ports:
       - "5050:5000"  # 浏览器通过 http://nas-ip:5050 访问
     environment: # 设置环境变量，告诉容器内的 Python 脚本照片库路径; 如果你在 Windows 上运行 Docker，确保路径格式正确（例如：/data 对应于 Windows 的 Y: 驱动器）
-          - NAS_PHOTO_DIR=/data  # 关键：告诉 Python 容器内的照片路径
+          - NAS_PHOTO_DIR=/homes  # 关键：告诉 Python 容器内的照片路径
+          - PUID=1026  # 在 NAS 终端输入 id 命令查看你自己的 UID
+          - PGID=100   # 通常群晖的 users 组是 100
     volumes:
-      - /volume2/docker/nas_cleaner/download:/data:rw  # 重要：将你的照片库映射到容器内的 /data
+      - /volume1/homes/:/homes:rw # 重要：将你的照片库映射到容器内的 /data
     restart: unless-stopped
+    user: "${PUID}:${PGID}" # 这样容器会以你的 NAS 账号权限运行
