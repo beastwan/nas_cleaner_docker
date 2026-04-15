@@ -15,4 +15,4 @@ services:
     volumes:
       - /volume1/homes/:/homes:rw # 重要：将你的照片库映射到容器内的 /data
     restart: unless-stopped
-    user: "1026:100" # 这样容器会以你的 NAS 账号权限运行
+    #user: "1026:100" # 这样容器会以你的 NAS 账号权限运行
