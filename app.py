@@ -35,8 +35,29 @@ pillow_heif.register_heif_opener()
 app = Flask(__name__)
 
 # ==================== 1. 系统配置区域 ====================
-# 默认路径配置
-DEFAULT_WINDOWS_PATH = '/homes'  # 默认扫描路径
+# 默认路径配置 - 智能检测可用路径
+def get_default_path():
+    """智能检测默认路径，优先使用存在的路径"""
+    # 可能的路径列表（按优先级排序）
+    possible_paths = [
+        '/volume1/homes',  # NAS路径
+        '/homes',          # Docker映射路径
+        '/data',           # 备用路径
+        'D:/photos',       # Windows本地测试路径
+        'C:/Users/china/Pictures'  # Windows用户图片目录
+    ]
+    
+    # 检查每个路径是否存在
+    for path in possible_paths:
+        if os.path.exists(path):
+            print(f"✅ 检测到可用路径: {path}")
+            return path
+    
+    # 如果没有找到存在的路径，返回第一个作为默认
+    print(f"⚠️  未找到存在的路径，使用默认: {possible_paths[0]}")
+    return possible_paths[0]
+
+DEFAULT_WINDOWS_PATH = get_default_path()  # 智能检测默认路径
 PHOTO_DIR = os.environ.get('NAS_PHOTO_DIR', DEFAULT_WINDOWS_PATH)
 EXTENSIONS = {'.jpg', '.jpeg', '.png', '.heic', '.webp', '.bmp', '.tiff', '.tif'}
 
