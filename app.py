@@ -40,7 +40,6 @@ def get_default_path():
     """智能检测默认路径，优先使用存在的路径"""
     # 可能的路径列表（按优先级排序）
     possible_paths = [
-        '/volume1/homes',  # NAS路径
         '/homes',          # Docker映射路径
         '/data',           # 备用路径
         'D:/photos',       # Windows本地测试路径
