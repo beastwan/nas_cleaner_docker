@@ -22,7 +22,9 @@ app = Flask(__name__)
 
 # ==================== 1. 系统配置区域 ====================
 # 这个默认路径现在只是作为前端输入框的初始值
-DEFAULT_WINDOWS_PATH = r'Y:' 
+# DEFAULT_WINDOWS_PATH = r'Y:' # <--- Run in my PC, map nas to Y drive
+DEFAULT_WINDOWS_PATH = '/data' # <--- Run in Docker, NAS 挂载在 /data 目录下
+
 PHOTO_DIR = os.environ.get('NAS_PHOTO_DIR', DEFAULT_WINDOWS_PATH)
 EXTENSIONS = {'.jpg', '.jpeg', '.png', '.heic', '.webp'}
 # 自动设置最大线程数 (CPU核心数 + 2)
