@@ -631,7 +631,9 @@
                 updateStatus();
                 $('#groupsContainer').empty();
                 $('#noResults').hide();
-                fetchNextBatch();
+                setTimeout(() => {
+                    fetchNextBatch();
+                }, 500);
             } else {
                 alert('初始化失败: ' + (data.error || '未知错误'));
             }
