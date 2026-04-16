@@ -511,3 +511,34 @@ class PhotoDatabase:
     def close(self):
         """关闭数据库连接（SQLite 会自动管理）"""
         pass
+
+    def clear_history_by_path(self, scan_path: str):
+        """清除指定路径下的所有处理记录和分组"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        # 先删除组成员（通过子查询关联）
+        cursor.execute('''
+            DELETE FROM group_members 
+            WHERE photo_id IN (
+                SELECT id FROM processed_photos 
+                WHERE file_path LIKE ?
+            )
+        ''', (scan_path + '%',))
+        
+        # 删除该路径下的照片记录
+        cursor.execute('''
+            DELETE FROM processed_photos 
+            WHERE file_path LIKE ?
+        ''', (scan_path + '%',))
+        
+        # 删除没有任何成员的空组（可选）
+        cursor.execute('''
+            DELETE FROM photo_groups 
+            WHERE id NOT IN (
+                SELECT DISTINCT group_id FROM group_members
+            )
+        ''')
+        
+        conn.commit()
+        conn.close()

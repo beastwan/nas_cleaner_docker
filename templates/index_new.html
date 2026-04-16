@@ -644,8 +644,7 @@
             });
     }
 
-    // 开始扫描
-    function startScan() {
+    function performScanInit() {
         const scanPath = $('#scanPathInput').val();
         const windowSize = parseInt($('#algorithmWindowInput').val());
         const similarityThreshold = parseFloat($('#similarityThresholdInput').val());
@@ -688,6 +687,26 @@
             console.error('开始扫描失败:', err);
             alert('开始扫描失败');
         });
+    }
+
+    // 开始扫描
+    function startScan() {
+
+        // 询问是否重新扫描（清除历史）
+        if (confirm('是否清除该路径的历史记录并重新扫描？\n（如不清除，将仅扫描新增照片）')) {
+            fetch('/api/clear_path_history', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({path: scanPath})
+            })
+            .then(() => {
+                // 清除完成后执行原来的初始化
+                performScanInit(scanPath, windowSize, similarityThreshold);
+            });
+        } else {
+            // 不清除历史，直接扫描（仅分析新照片）
+            performScanInit(scanPath, windowSize, similarityThreshold);
+        }
     }
     
     // 暂停扫描

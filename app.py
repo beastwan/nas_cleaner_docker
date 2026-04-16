@@ -1016,6 +1016,18 @@ def serve_image():
     else:
         return send_from_directory(os.path.dirname(raw_path), os.path.basename(raw_path))
 
+@app.route('/api/clear_path_history', methods=['POST'])
+def clear_path_history():
+    data = request.json
+    scan_path = data.get('path', '')
+    if not scan_path:
+        return jsonify({"error": "缺少路径参数"}), 400
+    
+    db.clear_history_by_path(scan_path)
+    # 同时清理文件缓存
+    clear_file_cache(scan_path)
+    return jsonify({"success": True})
+
 # ==================== 10. 主程序入口 ====================
 
 if __name__ == '__main__':
