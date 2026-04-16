@@ -668,7 +668,7 @@
     
     // 加载初始组
     function loadInitialGroups() {
-        fetch('/api/groups?limit=20')
+        fetch('/api/scan/batch?batch_size=20')
             .then(res => res.json())
             .then(data => {
                 if (data.groups && data.groups.length > 0) {
@@ -678,7 +678,7 @@
                 }
             })
             .catch(err => {
-                console.error('加载组失败:', err);
+                console.error('加载批次失败:', err);
             });
     }
     
