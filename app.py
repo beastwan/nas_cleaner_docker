@@ -88,9 +88,12 @@ def get_cached_file_list(scan_path):
             
             for root, dirs, files in os.walk(scan_path):
                 # 过滤群晖缩略图目录
-                dirs[:] = [d for d in dirs if '@eadir' not in d.lower()]
+                dirs[:] = [d for d in dirs if '@eadir' not in d.lower() and not d.startswith('.')]
                 
                 for file in files:
+                    # 👉 【修改点 2】：跳过 macOS 或群晖产生的隐藏文件
+                    if file.startswith('.'):
+                        continue
                     if os.path.splitext(file)[1].lower() in EXTENSIONS:
                         full_path = os.path.join(root, file)
                         file_list.append(full_path)
@@ -527,6 +530,14 @@ def score_scenery_image_improved(cv_img, global_sharpness):
     return final_score, scores
 
 # ==================== 6. 照片处理核心函数 ====================
+def safe_read_image(path):
+    """安全读取图片，完美支持带有中文或特殊字符的路径"""
+    try:
+        # 使用 numpy + imdecode 代替 cv2.imread，解决中文路径读取报错
+        return cv2.imdecode(np.fromfile(path, dtype=np.uint8), cv2.IMREAD_COLOR)
+    except Exception as e:
+        print(f"读取图片失败: {path}, 错误: {e}")
+        return None
 
 def analyze_image_task(path):
     """单张图片处理入口 - 改进版"""
@@ -536,9 +547,13 @@ def analyze_image_task(path):
             print(f"⏭️ 跳过已处理照片: {path}")
             return None
         
-        # 读取图片
-        pil_img = Image.open(path).convert('RGB')
-        pil_img = ImageOps.exif_transpose(pil_img)
+        # 🛡️ === 关键修改点：增加针对读取失败的精准拦截 === 🛡️
+        try:
+            pil_img = Image.open(path).convert('RGB')
+            pil_img = ImageOps.exif_transpose(pil_img)
+        except Exception as read_err:
+            print(f"⚠️ [跳过] 无法读取图片 {path} (可能是格式不支持或损坏文件): {read_err}")
+            return None  # 遇到坏图片，直接返回 None，让外层循环继续扫描下一张
         
         # 获取文件信息
         file_size = os.path.getsize(path)
@@ -620,7 +635,8 @@ def analyze_image_task(path):
         return photo_item
 
     except Exception as e:
-        print(f"❌ Error processing {path}: {e}")
+        # 这个外层的大 except 用来捕获后面的 AI 计算错误 (比如张量形状不对、内存溢出等)
+        print(f"❌ [AI处理异常] 处理 {path} 时出错: {e}")
         return None
 
 def compute_cosine_similarity(vec1, vec2):
@@ -954,22 +970,18 @@ def serve_thumbnail():
     ext = os.path.splitext(raw_path)[1].lower()
     
     try:
-        # 打开图片
+        # 替换这里：原本可能是直接用 Image.open 或 cv2
+        # 我们这里用 PIL 安全打开，因为 PIL 原生支持中文路径
         img = Image.open(raw_path)
-        img = ImageOps.exif_transpose(img)
+        img.thumbnail(THUMBNAIL_SIZE)
         
-        # 创建缩略图
-        img.thumbnail(THUMBNAIL_SIZE, Image.Resampling.LANCZOS)
-        
-        # 保存为 JPEG 字节流
+        # 转换并返回
+        img = img.convert('RGB')
         img_io = io.BytesIO()
-        if img.mode != 'RGB':
-            img = img.convert('RGB')
         img.save(img_io, 'JPEG', quality=THUMBNAIL_QUALITY)
         img_io.seek(0)
         
         return send_file(img_io, mimetype='image/jpeg')
-        
     except Exception as e:
         print(f"生成缩略图失败: {e}")
         return "生成缩略图失败", 500

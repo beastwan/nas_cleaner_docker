@@ -2,11 +2,23 @@
 滑动窗口算法模块 - 参考 Android 应用的滑动窗口算法实现
 用于优化相似照片分组，解决连续相似照片被分到不同组的问题
 """
+import os
+import cv2
 import numpy as np
 from typing import List, Dict, Any, Optional, Tuple
 import hashlib
 import json
 
+# --- 增加一个通用的安全读取函数 ---
+def safe_cv2_imread(file_path):
+    """使用 Numpy 解决 OpenCV 无法读取中文路径的问题"""
+    try:
+        # 使用 np.fromfile 读取字节流，再用 cv2.imdecode 解码
+        img_array = np.fromfile(file_path, dtype=np.uint8)
+        return cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+    except Exception as e:
+        print(f"[Error] 图片解码失败 (可能是路径或格式问题) {file_path}: {e}")
+        return None
 
 class PhotoItem:
     """照片项类，封装照片的元数据和特征"""
