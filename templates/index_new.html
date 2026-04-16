@@ -644,11 +644,7 @@
             });
     }
 
-    function performScanInit() {
-        const scanPath = $('#scanPathInput').val();
-        const windowSize = parseInt($('#algorithmWindowInput').val());
-        const similarityThreshold = parseFloat($('#similarityThresholdInput').val());
-        
+    function performScanInitWithParams(scanPath, windowSize, similarityThreshold) {
         if (!scanPath) {
             alert('请输入扫描路径');
             return;
@@ -691,7 +687,15 @@
 
     // 开始扫描
     function startScan() {
-
+        const scanPath = $('#scanPathInput').val();
+        const windowSize = parseInt($('#algorithmWindowInput').val());
+        const similarityThreshold = parseFloat($('#similarityThresholdInput').val());
+        
+        if (!scanPath) {
+            alert('请输入扫描路径');
+            return;
+        }
+        
         // 询问是否重新扫描（清除历史）
         if (confirm('是否清除该路径的历史记录并重新扫描？\n（如不清除，将仅扫描新增照片）')) {
             fetch('/api/clear_path_history', {
@@ -699,13 +703,22 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({path: scanPath})
             })
-            .then(() => {
-                // 清除完成后执行原来的初始化
-                performScanInit(scanPath, windowSize, similarityThreshold);
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    // 清除完成后执行原来的初始化
+                    performScanInitWithParams(scanPath, windowSize, similarityThreshold);
+                } else {
+                    alert('清除历史失败: ' + (data.error || '未知错误'));
+                }
+            })
+            .catch(err => {
+                console.error('清除历史失败:', err);
+                alert('清除历史请求失败');
             });
         } else {
             // 不清除历史，直接扫描（仅分析新照片）
-            performScanInit(scanPath, windowSize, similarityThreshold);
+            performScanInitWithParams(scanPath, windowSize, similarityThreshold);
         }
     }
     
@@ -754,24 +767,65 @@
         if (!isScanning || !hasMore) return;
         fetchNextBatchForce();   // 复用强制拉取逻辑
     }
-    
+
+    function keepWholeGroup(groupId) {
+        // 获取该组对应的 group_hash
+        // 由于组是动态渲染的，我们需要存储 group_hash 到 DOM 上
+        // 可以在渲染时给卡片一个 data-group-hash 属性
+        const groupCard = $(`#${groupId}`);
+        const groupHash = groupCard.data('groupHash');
+        
+        if (!groupHash) {
+            alert('无法获取组标识');
+            return;
+        }
+        
+        fetch('/api/group/keep_all', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({group_hash: groupHash})
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                // 将组内所有照片标记为保留样式
+                groupCard.find('.img-card').addClass('kept');
+                // 同时从选中集合中移除（避免误删）
+                data.paths.forEach(path => selectedPhotos.delete(path));
+                updateSelectedCount();
+                alert(`已将 ${data.count} 张照片标记为保留`);
+            } else {
+                alert('操作失败: ' + (data.error || '未知错误'));
+            }
+        })
+        .catch(err => {
+            console.error('全部保留失败:', err);
+            alert('请求失败');
+        });
+    }
+
     // 渲染组
     function renderGroups(groups) {
         const container = $('#groupsContainer');
         
         groups.forEach((group, groupIndex) => {
+            const groupHash = group.group_hash;
+            const photos = group.photos;
             const groupId = `group-${Date.now()}-${groupIndex}`;
             const groupHtml = `
-                <div class="card mb-4" id="${groupId}">
+                <div class="card mb-4" id="${groupId}" data-group-hash="${groupHash}">
                     <div class="card-header bg-light d-flex justify-content-between align-items-center">
                         <div>
                             <button class="btn btn-sm btn-outline-secondary me-2" onclick="toggleGroup('${groupId}')">
                                 <i class="bi bi-chevron-down"></i>
                             </button>
                             <span class="fw-bold">相似组 ${groupIndex + 1}</span>
-                            <span class="badge bg-primary ms-2">${group.length} 张照片</span>
+                            <span class="badge bg-primary ms-2">${photos.length} 张照片</span>
                         </div>
                         <div>
+                            <button class="btn btn-sm btn-outline-success me-2" onclick="keepWholeGroup('${groupId}')">
+                                <i class="bi bi-bookmark-check"></i> 全部保留
+                            </button>
                             <button class="btn btn-sm btn-outline-danger" onclick="deleteGroup('${groupId}')">
                                 <i class="bi bi-trash"></i> 删除整组
                             </button>
@@ -779,7 +833,7 @@
                     </div>
                     <div class="card-body">
                         <div class="row">
-                            ${group.map((photo, photoIndex) => `
+                            ${photos.map((photo, photoIndex) => `
                                 <div class="col-md-3 col-lg-2 mb-3">
                                     <div class="img-card ${photoIndex === 0 ? 'best' : ''}" 
                                          onclick="toggleSelect('${photo.path}')"
@@ -865,7 +919,13 @@
     function updateSelectedCount() {
         $('#selectedCount').text(selectedPhotos.size);
     }
-    
+
+    // 更新组计数
+    function updateGroupCount() {
+        const count = $('#groupsContainer .card').length;
+        $('#groupCount').text(count);
+    }
+
     // 全选当前视图
     function selectAllInView() {
         $('.img-card:visible').each(function() {
@@ -1006,12 +1066,6 @@
     // 回到顶部
     function scrollToTop() {
         window.scrollTo({top: 0, behavior: 'smooth'});
-    }
-    
-    // 更新组计数
-    function updateGroupCount() {
-        const count = $('#groupsContainer .card').length;
-        $('#groupCount').text(count);
     }
     
     // 定期更新状态

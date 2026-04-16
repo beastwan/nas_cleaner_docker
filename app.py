@@ -724,9 +724,9 @@ def process_batch_with_sliding_window(file_paths):
     # 转换组为前端格式
     frontend_groups = []
     for group in new_groups:
-        group_data = []
+        photos_data = []
         for photo in group.photos:
-            group_data.append({
+            photos_data.append({
                 "path": photo.path,
                 "hash": photo.file_hash,
                 "score": photo.score,
@@ -739,9 +739,12 @@ def process_batch_with_sliding_window(file_paths):
             })
         
         # 按分数排序
-        group_data.sort(key=lambda x: x['score'], reverse=True)
+        photos_data.sort(key=lambda x: x['score'], reverse=True)
         
-        frontend_groups.append(group_data)
+        frontend_groups.append({
+            "group_hash": group.group_hash,
+            "photos": photos_data
+        })
     
     return frontend_groups
 
@@ -1027,6 +1030,58 @@ def clear_path_history():
     # 同时清理文件缓存
     clear_file_cache(scan_path)
     return jsonify({"success": True})
+
+@app.route('/api/group/keep_all', methods=['POST'])
+def group_keep_all():
+    """将整个相似组标记为全部保留"""
+    data = request.json
+    group_hash = data.get('group_hash')
+    
+    if not group_hash:
+        return jsonify({"error": "缺少组标识"}), 400
+    
+    # 查找该组所有照片
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT p.file_path, p.id 
+        FROM processed_photos p
+        JOIN group_members gm ON p.id = gm.photo_id
+        JOIN photo_groups g ON gm.group_id = g.id
+        WHERE g.group_hash = ?
+    ''', (group_hash,))
+    
+    rows = cursor.fetchall()
+    if not rows:
+        conn.close()
+        return jsonify({"error": "组不存在"}), 404
+    
+    paths = []
+    photo_ids = []
+    for file_path, photo_id in rows:
+        paths.append(file_path)
+        photo_ids.append(photo_id)
+        
+        # 记录用户操作
+        cursor.execute('''
+            INSERT INTO user_actions (photo_id, action)
+            VALUES (?, 'keep')
+        ''', (photo_id,))
+        
+        # 标记为忽略
+        cursor.execute('''
+            UPDATE processed_photos SET is_ignored = 1 WHERE id = ?
+        ''', (photo_id,))
+    
+    conn.commit()
+    conn.close()
+    
+    # 添加到扫描器忽略列表
+    scanner = session_manager.get_scanner()
+    if scanner:
+        scanner.add_ignored_paths(paths)
+    
+    return jsonify({"success": True, "count": len(paths), "paths": paths})
 
 # ==================== 10. 主程序入口 ====================
 
