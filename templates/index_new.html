@@ -604,7 +604,46 @@
         $('#currentSimilarityThreshold').text($('#similarityThresholdInput').val());
         $('#currentBatchSize').text($('#loadBatchInput').val());
     }
-    
+
+    // 强制拉取批次（绕过 isScanning 检查）
+    function fetchNextBatchForce() {
+        if (!hasMore) return;
+        
+        const batchSize = parseInt($('#loadBatchInput').val());
+        $('#loadingIndicator').show();
+        
+        fetch(`/api/scan/batch?batch_size=${batchSize}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.groups && data.groups.length > 0) {
+                    renderGroups(data.groups);
+                    $('#noResults').hide();
+                }
+                
+                hasMore = data.has_more;
+                $('#loadingIndicator').hide();
+                
+                if (!hasMore && (!data.groups || data.groups.length === 0)) {
+                    $('#noResults').show();
+                }
+                
+                // 更新进度
+                if (data.processed !== undefined && data.total !== undefined) {
+                    $('#processedCount').text(data.processed);
+                    const progress = data.total > 0 ? (data.processed / data.total * 100) : 0;
+                    $('#progressBar').css('width', `${progress}%`);
+                    $('#progressText').text(`${data.processed} / ${data.total}`);
+                }
+                
+                // 更新组计数
+                updateGroupCount();
+            })
+            .catch(err => {
+                console.error('获取批次失败:', err);
+                $('#loadingIndicator').hide();
+            });
+    }
+
     // 开始扫描
     function startScan() {
         const scanPath = $('#scanPathInput').val();
@@ -628,12 +667,19 @@
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                updateStatus();
+                // 手动设置状态，避免等待异步 status 更新
+                isScanning = true;
+                hasMore = true;
+                
+                // 清空容器，准备接收新数据
                 $('#groupsContainer').empty();
                 $('#noResults').hide();
-                setTimeout(() => {
-                    fetchNextBatch();
-                }, 500);
+                
+                // 直接拉取第一批数据（不依赖 isScanning）
+                fetchNextBatchForce();
+                
+                // 同时更新 UI 状态
+                updateStatus();
             } else {
                 alert('初始化失败: ' + (data.error || '未知错误'));
             }
@@ -687,37 +733,7 @@
     // 获取下一批
     function fetchNextBatch() {
         if (!isScanning || !hasMore) return;
-        
-        const batchSize = parseInt($('#loadBatchInput').val());
-        $('#loadingIndicator').show();
-        
-        fetch(`/api/scan/batch?batch_size=${batchSize}`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.groups && data.groups.length > 0) {
-                    renderGroups(data.groups);
-                    $('#noResults').hide();
-                }
-                
-                hasMore = data.has_more;
-                $('#loadingIndicator').hide();
-                
-                if (!hasMore && (!data.groups || data.groups.length === 0)) {
-                    $('#noResults').show();
-                }
-                
-                // 更新进度
-                if (data.processed !== undefined && data.total !== undefined) {
-                    $('#processedCount').text(data.processed);
-                    const progress = data.total > 0 ? (data.processed / data.total * 100) : 0;
-                    $('#progressBar').css('width', `${progress}%`);
-                    $('#progressText').text(`${data.processed} / ${data.total}`);
-                }
-            })
-            .catch(err => {
-                console.error('获取批次失败:', err);
-                $('#loadingIndicator').hide();
-            });
+        fetchNextBatchForce();   // 复用强制拉取逻辑
     }
     
     // 渲染组
